@@ -1,0 +1,92 @@
+name: Viral URL Rotate
+
+on:
+  schedule:
+    - cron: "30 18 * * *"   # දවසකට වරක් UTC 18:30 (≈ කොළඹ මධ්‍ය රාත්‍රියට ලඟ)
+  workflow_dispatch:        # අවශ්‍ය නම් manual run
+
+jobs:
+  rotate:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Compute today's date (Asia/Colombo)
+        id: today
+        run: |
+          DATE=$(TZ=Asia/Colombo date +%Y-%m-%d)
+          echo "date=$DATE" >> $GITHUB_OUTPUT
+
+      - name: Read redirect target
+        id: target
+        run: |
+          if [ -f redirect_target.txt ]; then
+            TARGET=$(cat redirect_target.txt | tr -d '\n' )
+          else
+            TARGET="https://todaylankaviralnews.github.io/"
+          fi
+          echo "url=$TARGET" >> $GITHUB_OUTPUT
+
+      - name: Create today's folder & index
+        run: |
+          DIR="viral/${{ steps.today.outputs.date }}"
+          mkdir -p "$DIR"
+          cat > "$DIR/index.html" <<'EOF'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Redirecting…</title>
+<meta http-equiv="refresh" content="0; url=_TARGET_">
+<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;display:grid;place-items:center;height:100vh} .card{padding:24px;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,.08)}</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Redirecting…</h1>
+    <p>If you are not redirected, <a href="_TARGET_">click here</a>.</p>
+  </div>
+<script>location.replace("_TARGET_");</script>
+</body>
+</html>
+EOF
+          sed -i "s|_TARGET_|${{ steps.target.outputs.url }}|g" "$DIR/index.html"
+
+      - name: Update root index.html to auto-jump to today
+        run: |
+          cat > index.html <<'EOF'
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Lanka Viral News — Daily Link</title>
+<script>
+(function(){
+  var today = new Date().toLocaleString('en-CA', { timeZone: 'Asia/Colombo', year:'numeric', month:'2-digit', day:'2-digit' }).replaceAll('/','-');
+  location.replace('/viral/' + today + '/');
+})();
+</script>
+<noscript><meta http-equiv="refresh" content="0; url=/viral/_DATE_/"></noscript>
+<style>body{font-family:system-ui,Segoe UI,Roboto,Arial,sans-serif;margin:0;display:grid;place-items:center;height:100vh} .card{padding:24px;border-radius:16px;box-shadow:0 6px 30px rgba(0,0,0,.08)}</style>
+</head>
+<body>
+  <div class="card">
+    <h1>Loading today’s link…</h1>
+    <p>Please enable JavaScript if not redirected.</p>
+  </div>
+</body>
+</html>
+EOF
+          sed -i "s|_DATE_|${{ steps.today.outputs.date }}|g" index.html
+
+      - name: Commit & push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "Viral rotate to ${{ steps.today.outputs.date }}"
+          git push
