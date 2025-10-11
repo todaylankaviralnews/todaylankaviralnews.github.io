@@ -3,10 +3,25 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Viral Page</title>
+  <title>Redirecting...</title>
+  <script>
+    async function redirectToLatest() {
+      try {
+        const response = await fetch('redirect_target.txt?' + Date.now());
+        const url = await response.text();
+        if (url && url.startsWith('http')) {
+          window.location.href = url.trim();
+        } else {
+          document.body.innerHTML = "<h2>⚠ Redirect link not found!</h2>";
+        }
+      } catch (e) {
+        document.body.innerHTML = "<h2>⚠ Error loading redirect link!</h2>";
+      }
+    }
+    redirectToLatest();
+  </script>
 </head>
 <body>
-  <h1>🔥 Today Viral Page (2025-10-11)</h1>
-  <p>This is the daily viral page. You can add your Adsterra or any content here.</p>
+  <h2>Redirecting to latest viral page...</h2>
 </body>
 </html>
